@@ -217,12 +217,11 @@ export default function CameraCapture({ onCapture, onClose }) {
           )}
         </div>
 
-        {/* capture="environment" opens the native camera directly on Android */}
+        {/* No capture attr: Android shows the system sheet with Camera + Gallery + Files */}
         <input
           ref={fallbackRef}
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          capture="environment"
           hidden
           onChange={(e) => {
             const file = e.target.files && e.target.files[0]

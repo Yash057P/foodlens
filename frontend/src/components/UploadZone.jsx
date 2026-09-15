@@ -30,7 +30,8 @@ export default function UploadZone({ onFileSelected, onTakePhoto, disabled }) {
 
   const handleCameraClick = () => {
     if (disabled) return
-    // Mobile/tablet: launch the native camera app. Desktop: open the in-app viewfinder.
+    // Opens the Android system chooser (Camera / Gallery / Files) on mobile,
+    // or the in-app viewfinder on desktop.
     if (isCoarsePointer()) {
       cameraInputRef.current && cameraInputRef.current.click()
     } else {
@@ -109,7 +110,14 @@ export default function UploadZone({ onFileSelected, onTakePhoto, disabled }) {
           type="button"
           className="btn btn-primary btn-zone"
           disabled={disabled}
-          onClick={() => !disabled && onTakePhoto && onTakePhoto()}
+          onClick={() => {
+            if (disabled) return
+            if (isCoarsePointer()) {
+              cameraInputRef.current && cameraInputRef.current.click()
+            } else {
+              onTakePhoto && onTakePhoto()
+            }
+          }}
         >
           <svg
             width="18"
@@ -137,12 +145,11 @@ export default function UploadZone({ onFileSelected, onTakePhoto, disabled }) {
         onChange={(e) => handleFiles(e.target.files)}
       />
 
-      {/* capture="environment" makes Android open the native camera app */}
+      {/* No capture attr: Android shows the system sheet with Camera + Gallery + Files */}
       <input
         ref={cameraInputRef}
         type="file"
         accept={ACCEPT}
-        capture="environment"
         hidden
         onChange={(e) => handleFiles(e.target.files)}
       />
