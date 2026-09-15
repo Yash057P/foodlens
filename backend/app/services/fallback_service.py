@@ -24,7 +24,7 @@ class GroqVisionFallback:
     classifier has low confidence. Gives the user a clear answer instead
     of a random guess."""
 
-    def __init__(self, api_key: str, model: str = "llama-3.2-11b-vision-preview", timeout: int = 30):
+    def __init__(self, api_key: str, model: str = "qwen/qwen3.8-27b", timeout: int = 30):
         self.api_key = api_key
         self.model = model
         self.timeout = timeout

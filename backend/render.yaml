@@ -27,7 +27,7 @@ services:
       - key: FOODLENS_FALLBACK_ENABLED
         value: "false"
       - key: FOODLENS_GROQ_MODEL
-        value: llama-3.2-11b-vision-preview
+        value: qwen/qwen3.8-27b
 
 # IMPORTANT: Set these secrets manually in the Render dashboard (Settings > Environment):
 # - HF_TOKEN          : Hugging Face token for hosted inference (~2,000 free calls/month)
