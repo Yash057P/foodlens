@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routes import router
 from .config import settings
-from .services.model_service import FoodClassificationService
+from .services.model_service import create_model_service
 from .services.nutrition_service import NutritionService
 
 logging.basicConfig(
@@ -21,8 +21,12 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Starting FoodLens backend...")
     app.state.nutrition_service = NutritionService(settings.nutrition_db_path)
-    app.state.model_service = FoodClassificationService(
-        settings.model_id, settings.device, settings.model_dtype
+    app.state.model_service = create_model_service(
+        settings.model_id,
+        settings.inference_provider,
+        settings.device,
+        settings.model_dtype,
+        settings.hf_token,
     )
     logger.info("FoodLens backend ready.")
     yield

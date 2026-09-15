@@ -6,7 +6,7 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
 from ..config import settings
 from ..schemas.predict import PredictResponse, Prediction
-from ..services.model_service import FoodClassificationService
+from ..services.model_service import AIModelService, HFInferenceError
 from ..services.nutrition_service import NutritionService
 from ..utils.image_utils import decode_image
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["predict"])
 
 
-def _services(request: Request) -> Tuple[FoodClassificationService, NutritionService]:
+def _services(request: Request) -> Tuple[AIModelService, NutritionService]:
     return request.app.state.model_service, request.app.state.nutrition_service
 
 
@@ -45,6 +45,12 @@ async def predict(request: Request, file: UploadFile = File(...)):
 
     try:
         ranked, inference_ms = await asyncio.to_thread(model_service.predict, image)
+    except HFInferenceError as exc:
+        logger.error("Hosted inference unavailable: %s", exc)
+        raise HTTPException(
+            status_code=502,
+            detail="Food recognition service is temporarily unavailable. Please try again in a moment.",
+        )
     except Exception as exc:  # inference errors must never leak stack traces to users
         logger.exception("Inference failed")
         raise HTTPException(status_code=500, detail="Model inference failed. Please try again.")

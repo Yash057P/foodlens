@@ -16,6 +16,8 @@ class Settings:
     model_id: str = os.getenv("FOODLENS_MODEL_ID", "nateraw/food")
     device: str = os.getenv("FOODLENS_DEVICE", "auto")
     model_dtype: str = os.getenv("FOODLENS_MODEL_DTYPE", "auto")
+    inference_provider: str = os.getenv("FOODLENS_INFERENCE_PROVIDER", "local")
+    hf_token: str = os.getenv("HF_TOKEN", "")
     confidence_threshold: float = float(os.getenv("FOODLENS_CONFIDENCE_THRESHOLD", "0.5"))
     max_upload_bytes: int = int(os.getenv("FOODLENS_MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
     nutrition_db_path: str = os.getenv(

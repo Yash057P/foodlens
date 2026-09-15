@@ -10,10 +10,8 @@ services:
     envVars:
       - key: FOODLENS_MODEL_ID
         value: nateraw/food
-      - key: FOODLENS_DEVICE
-        value: cpu
-      - key: FOODLENS_MODEL_DTYPE
-        value: float16
+      - key: FOODLENS_INFERENCE_PROVIDER
+        value: hf_api
       - key: FOODLENS_CORS_ORIGINS
         value: https://foodlens.vercel.app,https://foodlens.vercel.app/
       - key: PYTHON_VERSION
@@ -26,3 +24,8 @@ services:
         value: "false"
       - key: WEB_CONCURRENCY
         value: "1"
+
+# IMPORTANT: HF_TOKEN must be added manually in the Render service dashboard
+# (Settings > Environment, it is a secret - never commit it here). Predictions are
+# served by the Hugging Face hosted inference API for 'nateraw/food' (same model,
+# free tier ~2,000 calls/month) so this service needs almost no memory.

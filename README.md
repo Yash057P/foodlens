@@ -147,7 +147,10 @@ needed for local development.
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `FOODLENS_MODEL_ID` | `nateraw/food` | Hugging Face model id |
-| `FOODLENS_DEVICE` | `auto` | `auto` / `cuda` / `cpu` |
+| `FOODLENS_INFERENCE_PROVIDER` | `local` | `local` (torch in-process) or `hf_api` (Hugging Face hosted inference for the same model) |
+| `HF_TOKEN` | *(empty)* | Required when `FOODLENS_INFERENCE_PROVIDER=hf_api` |
+| `FOODLENS_DEVICE` | `auto` | `auto` / `cuda` / `cpu` (local provider) |
+| `FOODLENS_MODEL_DTYPE` | `auto` | `float16` etc. for the local provider |
 | `FOODLENS_CONFIDENCE_THRESHOLD` | `0.5` | Low-score warning threshold |
 | `FOODLENS_MAX_UPLOAD_BYTES` | `10485760` | Max upload size (bytes) |
 | `FOODLENS_NUTRITION_DB` | bundled path | Path to nutrition JSON |
@@ -165,12 +168,18 @@ Vite proxies `/api` to `http://127.0.0.1:8000`; in production it points to the d
 
 ### Backend
 
-- **Render (recommended):** the repo ships `backend/render.yaml` (Render Blueprint). From the Render
-  dashboard choose *New → Blueprint*, select the `Yash057P/foodlens` repository, and Render builds the
-  API from `backend/`. CPU device is set for free-tier inference.
+- **Render (recommended, free 512 MB):** the repo ships `backend/render.yaml` (Render Blueprint).
+  From the Render dashboard choose *New → Blueprint*, select the `Yash057P/foodlens` repository, then
+  render builds the API from `backend/`. The blueprint sets `FOODLENS_INFERENCE_PROVIDER=hf_api`, so
+  predictions come from Hugging Face's hosted inference for `nateraw/food` — the backend itself never
+  loads torch, keeping its memory footprint tiny. **Add `HF_TOKEN` as a secret in the Render service**
+  (Settings → Environment) — the same token you use on huggingface.co. Free HF usage is ~2,000
+  inference calls/month.
+- **Local/direct mode:** with `FOODLENS_INFERENCE_PROVIDER=local` the full torch model runs in-process
+  (needs ~2 GB RAM, e.g. a real machine or HF Spaces).
 - **Any Docker host / Hugging Face Spaces:** use `backend/Dockerfile` (installs CPU-only PyTorch).
 
-First request after a cold start is slower because the ViT weights are downloaded from Hugging Face.
+First request after an HF cold start is slower (the model spins up on Hugging Face's workers).
 
 ### Frontend
 
