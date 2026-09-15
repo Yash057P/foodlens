@@ -5,7 +5,7 @@ from typing import List, Tuple
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
 from ..config import settings
-from ..schemas.predict import PredictResponse, Prediction
+from ..schemas.predict import PredictResponse, Prediction, FallbackResult
 from ..services.model_service import AIModelService, HFInferenceError
 from ..services.nutrition_service import NutritionService
 from ..utils.image_utils import decode_image
@@ -61,9 +61,28 @@ async def predict(request: Request, file: UploadFile = File(...)):
     primary_food, primary_conf = ranked[0]
     low_confidence = primary_conf < settings.confidence_threshold
 
+    fallback_result = None
+
     if low_confidence:
         nutrition, nutrition_status = None, "uncertain"
         warning = "Uncertain prediction - try a clearer image."
+
+        if settings.fallback_enabled and settings.groq_api_key:
+            try:
+                from ..services.fallback_service import GroqVisionFallback
+
+                fb = GroqVisionFallback(settings.groq_api_key, settings.groq_model)
+                fb_raw = await asyncio.to_thread(fb.analyze, data)
+                fallback_result = FallbackResult(**fb_raw)
+            except Exception as exc:
+                logger.warning("Groq fallback failed: %s", exc)
+
+            if fallback_result and fallback_result.has_food and fallback_result.food_name:
+                key = fallback_result.food_name.strip().lower().replace(" ", "_")
+                fb_nutrition = nutrition_service.get(key)
+                if fb_nutrition:
+                    nutrition = fb_nutrition
+                    nutrition_status = "available"
     else:
         nutrition = nutrition_service.get(primary_food)
         if nutrition is None:
@@ -84,4 +103,5 @@ async def predict(request: Request, file: UploadFile = File(...)):
         low_confidence=low_confidence,
         warning=warning,
         inference_time_ms=round(inference_ms, 1),
+        fallback=fallback_result,
     )

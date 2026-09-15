@@ -13,6 +13,12 @@ class Prediction(BaseModel):
     confidence: float
 
 
+class FallbackResult(BaseModel):
+    has_food: bool
+    food_name: Optional[str] = None
+    description: str = ""
+
+
 class PredictResponse(BaseModel):
     success: bool
     prediction: Optional[Prediction] = None
@@ -22,4 +28,5 @@ class PredictResponse(BaseModel):
     low_confidence: bool = False
     warning: Optional[str] = None
     inference_time_ms: float = 0.0
+    fallback: Optional[FallbackResult] = None
     disclaimer: str = NUTRITION_DISCLAIMER

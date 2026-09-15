@@ -18,6 +18,9 @@ class Settings:
     model_dtype: str = os.getenv("FOODLENS_MODEL_DTYPE", "auto")
     inference_provider: str = os.getenv("FOODLENS_INFERENCE_PROVIDER", "local")
     hf_token: str = os.getenv("HF_TOKEN", "")
+    fallback_enabled: bool = os.getenv("FOODLENS_FALLBACK_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+    groq_api_key: str = os.getenv("GROQ_API_KEY", "")
+    groq_model: str = os.getenv("FOODLENS_GROQ_MODEL", "llama-3.2-11b-vision-preview")
     confidence_threshold: float = float(os.getenv("FOODLENS_CONFIDENCE_THRESHOLD", "0.5"))
     max_upload_bytes: int = int(os.getenv("FOODLENS_MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
     nutrition_db_path: str = os.getenv(

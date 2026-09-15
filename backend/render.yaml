@@ -24,8 +24,14 @@ services:
         value: "false"
       - key: WEB_CONCURRENCY
         value: "1"
+      - key: FOODLENS_FALLBACK_ENABLED
+        value: "false"
+      - key: FOODLENS_GROQ_MODEL
+        value: llama-3.2-11b-vision-preview
 
-# IMPORTANT: HF_TOKEN must be added manually in the Render service dashboard
-# (Settings > Environment, it is a secret - never commit it here). Predictions are
-# served by the Hugging Face hosted inference API for 'nateraw/food' (same model,
-# free tier ~2,000 calls/month) so this service needs almost no memory.
+# IMPORTANT: Set these secrets manually in the Render dashboard (Settings > Environment):
+# - HF_TOKEN          : Hugging Face token for hosted inference (~2,000 free calls/month)
+# - GROQ_API_KEY      : (optional) Free Groq key from console.groq.com
+#                         Enables a fallback vision call when the primary model confidence
+#                         is low. Set FOODLENS_FALLBACK_ENABLED=true once the key is added.
+# Neither secret must ever be committed to the repo.

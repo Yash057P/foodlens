@@ -1507,6 +1507,41 @@ body {
   font-weight: 600;
 }
 
+/* ---------- No food detected / fallback ---------- */
+.no-food-detected,
+.fallback-identified {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 32px 20px;
+}
+
+.no-food-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 1px solid var(--track);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.no-food-detected .verdict-food {
+  font-size: 1.2rem;
+}
+
+.fallback-desc {
+  color: var(--muted);
+  font-size: 0.88rem;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
 /* ---------- Footer ---------- */
 .footer {
   padding: 14px 20px calc(18px + var(--safe-bottom));
