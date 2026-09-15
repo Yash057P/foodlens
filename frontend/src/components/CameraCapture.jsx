@@ -11,9 +11,17 @@ export default function CameraCapture({ onCapture, onClose }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const fallbackRef = useRef(null)
+  const attachRef = useRef(false)
   const [state, setState] = useState('starting') // starting | live | error
   const [facing, setFacing] = useState('environment')
-  const [busy, setBusy] = useState(false)
+
+  const attachStream = (stream) => {
+    const v = videoRef.current
+    if (!v || !stream) return
+    if (v.srcObject === stream) return
+    v.srcObject = stream
+    v.play().catch(() => {})
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -23,43 +31,32 @@ export default function CameraCapture({ onCapture, onClose }) {
         setState('error')
         return
       }
+
       setState('starting')
       stopStream(streamRef.current)
       streamRef.current = null
+      attachRef.current = false
+
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: facing },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
+        const constraints = {
+          video: { facingMode: { ideal: facing } },
           audio: false,
-        })
+        }
+        const stream = await navigator.mediaDevices.getUserMedia(constraints)
         if (cancelled) {
           stopStream(stream)
           return
         }
         streamRef.current = stream
-        const v = videoRef.current
-        if (!v) {
+
+        if (cancelled) {
           stopStream(stream)
           return
         }
-        v.srcObject = stream
-        await new Promise((resolve) => {
-          let done = false
-          const onMeta = () => {
-            done = true
-            v.removeEventListener('loadedmetadata', onMeta)
-            resolve()
-          }
-          v.addEventListener('loadedmetadata', onMeta)
-          setTimeout(() => {
-            if (!done) resolve()
-          }, 2500)
-        })
-        await v.play().catch(() => {})
-        if (!cancelled) setState('live')
+
+        // attachRef signals that the video element is ready for stream
+        attachRef.current = false
+        setState('live')
       } catch {
         if (!cancelled) setState('error')
       }
@@ -73,17 +70,23 @@ export default function CameraCapture({ onCapture, onClose }) {
     }
   }, [facing])
 
+  // When state is 'live' and video element exists, attach the stream
+  useEffect(() => {
+    if (state === 'live' && streamRef.current && videoRef.current && !attachRef.current) {
+      attachStream(streamRef.current)
+      attachRef.current = true
+    }
+  }, [state])
+
   const handleCapture = () => {
     const v = videoRef.current
-    if (!v || !v.videoWidth || busy) return
-    setBusy(true)
+    if (!v || !v.videoWidth) return
     const canvas = document.createElement('canvas')
     canvas.width = v.videoWidth
     canvas.height = v.videoHeight
     canvas.getContext('2d').drawImage(v, 0, 0)
     canvas.toBlob(
       (blob) => {
-        setBusy(false)
         if (!blob) return
         const file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' })
         onCapture(file)
@@ -102,7 +105,6 @@ export default function CameraCapture({ onCapture, onClose }) {
             className="camera-icon-btn"
             onClick={onClose}
             aria-label={t('close')}
-            disabled={state === 'starting'}
           >
             <svg
               width="20"
@@ -123,7 +125,9 @@ export default function CameraCapture({ onCapture, onClose }) {
           <button
             type="button"
             className="camera-icon-btn"
-            onClick={() => setFacing((f) => (f === 'environment' ? 'user' : 'environment'))}
+            onClick={() => {
+              setFacing((f) => (f === 'environment' ? 'user' : 'environment'))
+            }}
             aria-label={t('switchCamera')}
             disabled={state !== 'live'}
           >
@@ -144,17 +148,20 @@ export default function CameraCapture({ onCapture, onClose }) {
           </button>
         </header>
 
-        {state === 'starting' && (
-          <div className="camera-stage camera-stage-message">
-            <span className="spinner" aria-hidden="true" />
-            <p>{t('analyzing')}…</p>
-          </div>
-        )}
+        <div className="camera-stage">
+          {/* Video is ALWAYS rendered so refs exist when stream arrives */}
+          <video
+            ref={videoRef}
+            className={`camera-video ${state !== 'live' ? 'camera-video-hidden' : ''}`}
+            autoPlay
+            playsInline
+            muted
+            onClick={state === 'live' ? handleCapture : undefined}
+          />
 
-        {state === 'live' && (
-          <div className="camera-stage" onClick={handleCapture} role="button" tabIndex={0}>
-            <video ref={videoRef} className="camera-video" autoPlay playsInline muted />
-            <div className="camera-hint">{t('tapToCapture')}</div>
+          {state === 'live' && <div className="camera-hint">{t('tapToCapture')}</div>}
+
+          {state === 'live' && (
             <div className="camera-shutter-row">
               <button
                 type="button"
@@ -168,24 +175,31 @@ export default function CameraCapture({ onCapture, onClose }) {
                 <span />
               </button>
             </div>
-          </div>
-        )}
+          )}
 
-        {state === 'error' && (
-          <div className="camera-stage camera-stage-message">
-            <p className="camera-error">{t('cameraDenied')}</p>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => fallbackRef.current && fallbackRef.current.click()}
-            >
-              {t('uploadBtn')}
-            </button>
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
-              {t('close')}
-            </button>
-          </div>
-        )}
+          {state === 'starting' && (
+            <div className="camera-overlay-msg">
+              <span className="spinner" aria-hidden="true" />
+              <p>{t('analyzing')}…</p>
+            </div>
+          )}
+
+          {state === 'error' && (
+            <div className="camera-overlay-msg">
+              <p className="camera-error">{t('cameraDenied')}</p>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => fallbackRef.current && fallbackRef.current.click()}
+              >
+                {t('uploadBtn')}
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={onClose}>
+                {t('close')}
+              </button>
+            </div>
+          )}
+        </div>
 
         <input
           ref={fallbackRef}
