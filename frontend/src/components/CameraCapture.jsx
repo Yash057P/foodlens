@@ -6,29 +6,32 @@ function stopStream(stream) {
   stream.getTracks().forEach((track) => track.stop())
 }
 
+const GRANT_TIMEOUT_MS = 9000
+
 export default function CameraCapture({ onCapture, onClose }) {
   const { t } = useSettings()
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const fallbackRef = useRef(null)
   const attachRef = useRef(false)
+  const deniedRef = useRef(false)
   const [state, setState] = useState('starting') // starting | live | error
   const [facing, setFacing] = useState('environment')
 
   const attachStream = (stream) => {
     const v = videoRef.current
     if (!v || !stream) return
-    if (v.srcObject === stream) return
     v.srcObject = stream
     v.play().catch(() => {})
   }
 
   useEffect(() => {
     let cancelled = false
+    let grantTimer = null
 
     async function start() {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setState('error')
+        if (!cancelled) setState('error')
         return
       }
 
@@ -37,27 +40,26 @@ export default function CameraCapture({ onCapture, onClose }) {
       streamRef.current = null
       attachRef.current = false
 
+      grantTimer = setTimeout(() => {
+        if (!cancelled) setState('error')
+      }, GRANT_TIMEOUT_MS)
+
       try {
-        const constraints = {
+        const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: facing } },
           audio: false,
-        }
-        const stream = await navigator.mediaDevices.getUserMedia(constraints)
+        })
+        clearTimeout(grantTimer)
         if (cancelled) {
           stopStream(stream)
           return
         }
         streamRef.current = stream
-
-        if (cancelled) {
-          stopStream(stream)
-          return
-        }
-
-        // attachRef signals that the video element is ready for stream
         attachRef.current = false
         setState('live')
       } catch {
+        clearTimeout(grantTimer)
+        deniedRef.current = true
         if (!cancelled) setState('error')
       }
     }
@@ -65,18 +67,26 @@ export default function CameraCapture({ onCapture, onClose }) {
     start()
     return () => {
       cancelled = true
+      if (grantTimer) clearTimeout(grantTimer)
       stopStream(streamRef.current)
       streamRef.current = null
     }
   }, [facing])
 
-  // When state is 'live' and video element exists, attach the stream
+  // Attach the stream once the viewfinder is live and the video element exists
   useEffect(() => {
     if (state === 'live' && streamRef.current && videoRef.current && !attachRef.current) {
       attachStream(streamRef.current)
       attachRef.current = true
     }
   }, [state])
+
+  // Some browsers drop the play request; retry on canplay / user tap
+  const ensurePlaying = () => {
+    const v = videoRef.current
+    if (!v || !streamRef.current) return
+    if (v.paused) v.play().catch(() => {})
+  }
 
   const handleCapture = () => {
     const v = videoRef.current
@@ -148,7 +158,7 @@ export default function CameraCapture({ onCapture, onClose }) {
           </button>
         </header>
 
-        <div className="camera-stage">
+        <div className="camera-stage" onClick={state === 'live' ? handleCapture : ensurePlaying}>
           {/* Video is ALWAYS rendered so refs exist when stream arrives */}
           <video
             ref={videoRef}
@@ -156,7 +166,11 @@ export default function CameraCapture({ onCapture, onClose }) {
             autoPlay
             playsInline
             muted
-            onClick={state === 'live' ? handleCapture : undefined}
+            onCanPlay={ensurePlaying}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (state === 'live') handleCapture()
+            }}
           />
 
           {state === 'live' && <div className="camera-hint">{t('tapToCapture')}</div>}
@@ -180,19 +194,21 @@ export default function CameraCapture({ onCapture, onClose }) {
           {state === 'starting' && (
             <div className="camera-overlay-msg">
               <span className="spinner" aria-hidden="true" />
-              <p>{t('analyzing')}…</p>
+              <p>{t('cameraStarting')}…</p>
             </div>
           )}
 
           {state === 'error' && (
             <div className="camera-overlay-msg">
-              <p className="camera-error">{t('cameraDenied')}</p>
+              <p className="camera-error">
+                {deniedRef.current ? t('cameraDenied') : t('cameraUnavailable')}
+              </p>
               <button
                 type="button"
                 className="btn btn-primary"
                 onClick={() => fallbackRef.current && fallbackRef.current.click()}
               >
-                {t('uploadBtn')}
+                {t('cameraBtn')}
               </button>
               <button type="button" className="btn btn-secondary" onClick={onClose}>
                 {t('close')}
@@ -201,10 +217,12 @@ export default function CameraCapture({ onCapture, onClose }) {
           )}
         </div>
 
+        {/* capture="environment" opens the native camera directly on Android */}
         <input
           ref={fallbackRef}
           type="file"
           accept="image/jpeg,image/png,image/webp"
+          capture="environment"
           hidden
           onChange={(e) => {
             const file = e.target.files && e.target.files[0]
