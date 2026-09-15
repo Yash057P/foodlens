@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Starting FoodLens backend...")
     app.state.nutrition_service = NutritionService(settings.nutrition_db_path)
-    app.state.model_service = FoodClassificationService(settings.model_id, settings.device)
+    app.state.model_service = FoodClassificationService(
+        settings.model_id, settings.device, settings.model_dtype
+    )
     logger.info("FoodLens backend ready.")
     yield
     logger.info("Shutting down FoodLens backend.")

@@ -5,14 +5,24 @@ services:
     plan: free
     rootDir: backend
     healthCheckPath: /api/health
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install --no-cache-dir torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu && pip install --no-cache-dir -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: FOODLENS_MODEL_ID
         value: nateraw/food
       - key: FOODLENS_DEVICE
         value: cpu
+      - key: FOODLENS_MODEL_DTYPE
+        value: float16
       - key: FOODLENS_CORS_ORIGINS
         value: https://foodlens.vercel.app,https://foodlens.vercel.app/
       - key: PYTHON_VERSION
         value: 3.12.0
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: MKL_NUM_THREADS
+        value: "1"
+      - key: TOKENIZERS_PARALLELISM
+        value: "false"
+      - key: WEB_CONCURRENCY
+        value: "1"

@@ -6,6 +6,15 @@ import torch
 from PIL import Image
 from transformers import AutoFeatureExtractor, AutoImageProcessor, AutoModelForImageClassification
 
+DTYPE_ALIASES = {
+    "float16": "float16",
+    "fp16": "float16",
+    "bfloat16": "bfloat16",
+    "bf16": "bfloat16",
+    "float32": "float32",
+    "fp32": "float32",
+}
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,19 +34,21 @@ class AIModelService(abc.ABC):
 class FoodClassificationService(AIModelService):
     """ViT image classifier for Food-101 food categories."""
 
-    def __init__(self, model_id: str, device: str = "auto"):
+    def __init__(self, model_id: str, device: str = "auto", dtype: str = "auto"):
         self.model_id = model_id
         self.device = self._resolve_device(device)
-        self.processor, self.model = self._load(model_id)
+        self.model_dtype = self._resolve_dtype(dtype)
+        self.processor, self.model = self._load(model_id, self.model_dtype)
         self.model.to(self.device)
         self.model.eval()
         self.n_classes = self.model.config.num_labels
         self.id2label = {int(k): v for k, v in self.model.config.id2label.items()}
         logger.info(
-            "Loaded food classifier '%s' on %s with %d classes",
+            "Loaded food classifier '%s' on %s with %d classes (dtype=%s)",
             model_id,
             self.device,
             self.n_classes,
+            self.model_dtype or "default",
         )
 
     @staticmethod
@@ -50,12 +61,26 @@ class FoodClassificationService(AIModelService):
         return "cpu"
 
     @staticmethod
-    def _load(model_id: str):
+    def _resolve_dtype(dtype: str) -> str | None:
+        if dtype in ("auto", "", None):
+            return None
+        key = dtype.strip().lower()
+        resolved = DTYPE_ALIASES.get(key)
+        if resolved:
+            return resolved
+        logger.warning("Unknown dtype '%s', using model default", dtype)
+        return None
+
+    @staticmethod
+    def _load(model_id: str, model_dtype=None):
         try:
             processor = AutoImageProcessor.from_pretrained(model_id)
         except Exception:
             processor = AutoFeatureExtractor.from_pretrained(model_id)
-        model = AutoModelForImageClassification.from_pretrained(model_id)
+        model = AutoModelForImageClassification.from_pretrained(
+            model_id,
+            **({"torch_dtype": model_dtype} if model_dtype else {}),
+        )
         return processor, model
 
     def predict(self, image: Image.Image):
