@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: foodlens-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    healthCheckPath: /api/health
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: FOODLENS_MODEL_ID
+        value: nateraw/food
+      - key: FOODLENS_DEVICE
+        value: cpu
+      - key: FOODLENS_CORS_ORIGINS
+        value: https://foodlens.vercel.app,https://foodlens.vercel.app/
+      - key: PYTHON_VERSION
+        value: 3.12.0

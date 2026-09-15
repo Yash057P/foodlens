@@ -153,6 +153,43 @@ needed for local development.
 | `FOODLENS_NUTRITION_DB` | bundled path | Path to nutrition JSON |
 | `FOODLENS_CORS_ORIGINS` | `http://localhost:5173,...` | Allowed CORS origins |
 
+## Deployment
+
+The frontend calls the backend through an environment variable. In development it is left empty and
+Vite proxies `/api` to `http://127.0.0.1:8000`; in production it points to the deployed backend.
+
+| Variable | Where | Purpose |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | frontend build env | Full URL of the deployed backend, e.g. `https://foodlens-api.onrender.com` |
+| `FOODLENS_CORS_ORIGINS` | backend env | Comma-separated allowed frontend origins |
+
+### Backend
+
+- **Render (recommended):** the repo ships `backend/render.yaml` (Render Blueprint). From the Render
+  dashboard choose *New → Blueprint*, select the `Yash057P/foodlens` repository, and Render builds the
+  API from `backend/`. CPU device is set for free-tier inference.
+- **Any Docker host / Hugging Face Spaces:** use `backend/Dockerfile` (installs CPU-only PyTorch).
+
+First request after a cold start is slower because the ViT weights are downloaded from Hugging Face.
+
+### Frontend
+
+- **Vercel:** import the repo, set *Root Directory* to `frontend` (ships `vercel.json`), and add the
+  backend URL as `VITE_API_BASE_URL` under *Settings → Environment Variables*.
+
+### Keeping them in sync
+
+```
+Frontend (Vercel)                        Backend (Render)
+https://foodlens.vercel.app   ───────►   https://foodlens-api.onrender.com
+        │  VITE_API_BASE_URL=https://foodlens-api.onrender.com
+        └────────── /api/predict ──────►  POST /api/predict
+                                        (CORS allows https://foodlens.vercel.app)
+```
+
+The Vite `/api` proxy used during development does not exist after deployment, which is why the
+frontend must use an absolute backend URL in production.
+
 ## Limitations
 
 - **Classification, not detection.** The model identifies one dominant food category. It does not
@@ -172,31 +209,29 @@ foodlens/
 │   │   ├── main.py                 # FastAPI app + lifespan (model load once)
 │   │   ├── config.py               # environment settings
 │   │   ├── api/routes.py           # /api/predict, /api/health
-│   │   ├── services/
-│   │   │   ├── model_service.py    # AIModelService + FoodClassificationService
-│   │   │   └── nutrition_service.py# nutrition lookup
+│   │   ├── services/               # model_service.py, nutrition_service.py
 │   │   ├── schemas/predict.py      # response models
 │   │   ├── utils/image_utils.py    # upload validation/decoding
 │   │   └── data/nutritional_database.json
+│   ├── render.yaml                 # Render Blueprint (backend deploy)
+│   ├── Dockerfile                  # CPU PyTorch image (HF Spaces / Docker hosts)
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
 │   │   ├── App.jsx
-│   │   ├── api.js
+│   │   ├── api.js                  # reads VITE_API_BASE_URL
+│   │   ├── SettingsContext.jsx     # theme + language
+│   │   ├── i18n/strings.js         # English / हिन्दी / मराठी
 │   │   ├── utils.js
 │   │   ├── styles.css
-│   │   └── components/
-│   │       ├── Header.jsx
-│   │       ├── UploadZone.jsx
-│   │       ├── ImagePreview.jsx
-│   │       ├── Results.jsx
-│   │       ├── NutritionCard.jsx
-│   │       ├── TopPredictions.jsx
-│   │       ├── WarningBanner.jsx
-│   │       └── Disclaimer.jsx
+│   │   ├── components/             # TopBar, Sidebar, UploadZone, CameraCapture, ...
+│   │   └── pages/                  # HistoryPage, SettingsPage, AboutPage
+│   ├── .env.example                # VITE_API_BASE_URL example
+│   ├── vercel.json                 # SPA rewrites / build output
 │   ├── public/favicon.svg
 │   ├── package.json
 │   ├── vite.config.js
 │   └── index.html
+├── start_project.ps1
 └── README.md
 ```
