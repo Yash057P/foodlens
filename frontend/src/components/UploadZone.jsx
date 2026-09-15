@@ -3,9 +3,15 @@ import { useSettings } from '../SettingsContext'
 
 const ACCEPT = 'image/jpeg,image/png,image/webp'
 
+const isCoarsePointer = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia &&
+  window.matchMedia('(pointer: coarse)').matches
+
 export default function UploadZone({ onFileSelected, onTakePhoto, disabled }) {
   const { t } = useSettings()
   const fileInputRef = useRef(null)
+  const cameraInputRef = useRef(null)
   const [dragActive, setDragActive] = useState(false)
 
   const handleFiles = (files) => {
@@ -21,6 +27,16 @@ export default function UploadZone({ onFileSelected, onTakePhoto, disabled }) {
   const invalidFile = (file) =>
     !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) &&
     !/\.(jpe?g|png|webp)$/i.test(file.name)
+
+  const handleCameraClick = () => {
+    if (disabled) return
+    // Mobile/tablet: launch the native camera app. Desktop: open the in-app viewfinder.
+    if (isCoarsePointer()) {
+      cameraInputRef.current && cameraInputRef.current.click()
+    } else {
+      onTakePhoto && onTakePhoto()
+    }
+  }
 
   return (
     <section
@@ -40,10 +56,10 @@ export default function UploadZone({ onFileSelected, onTakePhoto, disabled }) {
         className="camera-btn"
         role="button"
         tabIndex={0}
-        aria-label={t('uploadBtn')}
-        onClick={() => !disabled && fileInputRef.current && fileInputRef.current.click()}
+        aria-label={t('cameraBtn')}
+        onClick={handleCameraClick}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && !disabled) fileInputRef.current && fileInputRef.current.click()
+          if (e.key === 'Enter' && !disabled) handleCameraClick()
         }}
       >
         <svg
@@ -117,6 +133,16 @@ export default function UploadZone({ onFileSelected, onTakePhoto, disabled }) {
         ref={fileInputRef}
         type="file"
         accept={ACCEPT}
+        hidden
+        onChange={(e) => handleFiles(e.target.files)}
+      />
+
+      {/* capture="environment" makes Android open the native camera app */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept={ACCEPT}
+        capture="environment"
         hidden
         onChange={(e) => handleFiles(e.target.files)}
       />
