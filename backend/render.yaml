@@ -13,7 +13,7 @@ services:
       - key: FOODLENS_INFERENCE_PROVIDER
         value: hf_api
       - key: FOODLENS_CORS_ORIGINS
-        value: https://foodlens.vercel.app,https://foodlens.vercel.app/
+        value: https://frontend-mu-six-69vfy8yiio.vercel.app
       - key: PYTHON_VERSION
         value: 3.12.0
       - key: OMP_NUM_THREADS
