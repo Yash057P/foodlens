@@ -38,7 +38,11 @@ class FoodClassificationService(AIModelService):
         self.model_id = model_id
         self.device = self._resolve_device(device)
         self.model_dtype = self._resolve_dtype(dtype)
-        self.processor, self.model = self._load(model_id, self.model_dtype)
+        self.processor, self.model = self._load(
+            model_id,
+            self.model_dtype,
+            low_cpu_mem_usage=self.device == "cpu",
+        )
         self.model.to(self.device)
         self.model.eval()
         self.n_classes = self.model.config.num_labels
@@ -72,15 +76,15 @@ class FoodClassificationService(AIModelService):
         return None
 
     @staticmethod
-    def _load(model_id: str, model_dtype=None):
+    def _load(model_id: str, model_dtype=None, low_cpu_mem_usage: bool = False):
         try:
             processor = AutoImageProcessor.from_pretrained(model_id)
         except Exception:
             processor = AutoFeatureExtractor.from_pretrained(model_id)
-        model = AutoModelForImageClassification.from_pretrained(
-            model_id,
-            **({"torch_dtype": model_dtype} if model_dtype else {}),
-        )
+        kwargs = {"low_cpu_mem_usage": True} if low_cpu_mem_usage else {}
+        if model_dtype:
+            kwargs["torch_dtype"] = model_dtype
+        model = AutoModelForImageClassification.from_pretrained(model_id, **kwargs)
         return processor, model
 
     def predict(self, image: Image.Image):
