@@ -12,17 +12,27 @@ export default function CameraCapture({ onCapture, onClose }) {
   const streamRef = useRef(null)
   const fallbackRef = useRef(null)
   const [state, setState] = useState('starting') // starting | live | error
+  const [facing, setFacing] = useState('environment')
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     let cancelled = false
+
     async function start() {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         setState('error')
         return
       }
+      setState('starting')
+      stopStream(streamRef.current)
+      streamRef.current = null
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
+          video: {
+            facingMode: { ideal: facing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
           audio: false,
         })
         if (cancelled) {
@@ -30,32 +40,50 @@ export default function CameraCapture({ onCapture, onClose }) {
           return
         }
         streamRef.current = stream
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          await videoRef.current.play().catch(() => {})
+        const v = videoRef.current
+        if (!v) {
+          stopStream(stream)
+          return
         }
-        setState('live')
+        v.srcObject = stream
+        await new Promise((resolve) => {
+          let done = false
+          const onMeta = () => {
+            done = true
+            v.removeEventListener('loadedmetadata', onMeta)
+            resolve()
+          }
+          v.addEventListener('loadedmetadata', onMeta)
+          setTimeout(() => {
+            if (!done) resolve()
+          }, 2500)
+        })
+        await v.play().catch(() => {})
+        if (!cancelled) setState('live')
       } catch {
-        setState('error')
+        if (!cancelled) setState('error')
       }
     }
+
     start()
     return () => {
       cancelled = true
       stopStream(streamRef.current)
       streamRef.current = null
     }
-  }, [])
+  }, [facing])
 
   const handleCapture = () => {
     const v = videoRef.current
-    if (!v || !v.videoWidth) return
+    if (!v || !v.videoWidth || busy) return
+    setBusy(true)
     const canvas = document.createElement('canvas')
     canvas.width = v.videoWidth
     canvas.height = v.videoHeight
     canvas.getContext('2d').drawImage(v, 0, 0)
     canvas.toBlob(
       (blob) => {
+        setBusy(false)
         if (!blob) return
         const file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' })
         onCapture(file)
@@ -67,20 +95,51 @@ export default function CameraCapture({ onCapture, onClose }) {
 
   return (
     <div className="camera-modal" role="dialog" aria-modal="true" aria-label={t('cameraTitle')}>
-      <div className="camera-panel">
+      <div className={`camera-panel ${state === 'live' ? 'camera-panel-live' : ''}`}>
         <header className="camera-head">
-          <h3>{t('cameraTitle')}</h3>
-          <button type="button" className="camera-close" onClick={onClose} aria-label={t('close')}>
+          <button
+            type="button"
+            className="camera-icon-btn"
+            onClick={onClose}
+            aria-label={t('close')}
+            disabled={state === 'starting'}
+          >
             <svg
-              width="18"
-              height="18"
+              width="20"
+              height="20"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2.2"
+              strokeWidth="2.4"
               strokeLinecap="round"
+              aria-hidden="true"
             >
               <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+
+          <h3>{t('cameraTitle')}</h3>
+
+          <button
+            type="button"
+            className="camera-icon-btn"
+            onClick={() => setFacing((f) => (f === 'environment' ? 'user' : 'environment'))}
+            aria-label={t('switchCamera')}
+            disabled={state !== 'live'}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+              <path d="M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" />
             </svg>
           </button>
         </header>
@@ -93,10 +152,19 @@ export default function CameraCapture({ onCapture, onClose }) {
         )}
 
         {state === 'live' && (
-          <div className="camera-stage">
+          <div className="camera-stage" onClick={handleCapture} role="button" tabIndex={0}>
             <video ref={videoRef} className="camera-video" autoPlay playsInline muted />
+            <div className="camera-hint">{t('tapToCapture')}</div>
             <div className="camera-shutter-row">
-              <button type="button" className="shutter" onClick={handleCapture} aria-label={t('capture')}>
+              <button
+                type="button"
+                className="shutter"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleCapture()
+                }}
+                aria-label={t('capture')}
+              >
                 <span />
               </button>
             </div>
@@ -112,6 +180,9 @@ export default function CameraCapture({ onCapture, onClose }) {
               onClick={() => fallbackRef.current && fallbackRef.current.click()}
             >
               {t('uploadBtn')}
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>
+              {t('close')}
             </button>
           </div>
         )}
