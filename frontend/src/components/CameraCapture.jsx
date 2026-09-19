@@ -94,7 +94,14 @@ export default function CameraCapture({ onCapture, onClose }) {
     const canvas = document.createElement('canvas')
     canvas.width = v.videoWidth
     canvas.height = v.videoHeight
-    canvas.getContext('2d').drawImage(v, 0, 0)
+    const ctx = canvas.getContext('2d')
+    ctx.save()
+    if (facing === 'user') {
+      ctx.translate(canvas.width, 0)
+      ctx.scale(-1, 1)
+    }
+    ctx.drawImage(v, 0, 0)
+    ctx.restore()
     canvas.toBlob(
       (blob) => {
         if (!blob) return
@@ -112,22 +119,12 @@ export default function CameraCapture({ onCapture, onClose }) {
         <header className="camera-head">
           <button
             type="button"
-            className="camera-icon-btn"
+            className="camera-icon-btn camera-back-btn"
             onClick={onClose}
             aria-label={t('close')}
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              aria-hidden="true"
-            >
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
+            <span aria-hidden="true">← </span>
+            {t('back')}
           </button>
 
           <h3>{t('cameraTitle')}</h3>
@@ -162,7 +159,7 @@ export default function CameraCapture({ onCapture, onClose }) {
           {/* Video is ALWAYS rendered so refs exist when stream arrives */}
           <video
             ref={videoRef}
-            className={`camera-video ${state !== 'live' ? 'camera-video-hidden' : ''}`}
+            className={`camera-video ${state !== 'live' ? 'camera-video-hidden' : ''} ${facing === 'user' ? 'camera-video-front' : ''}`}
             autoPlay
             playsInline
             muted
