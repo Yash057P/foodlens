@@ -169,8 +169,9 @@ Vite proxies `/api` to `http://127.0.0.1:8000`; in production it points to the d
 ### Backend
 
 - **Render (recommended, free 512 MB):** the repo ships `backend/render.yaml` (Render Blueprint).
-  From the Render dashboard choose *New → Blueprint*, select the `Yash057P/foodlens` repository, then
-  render builds the API from `backend/`. The blueprint sets `FOODLENS_INFERENCE_PROVIDER=hf_api`, so
+  From the Render dashboard choose *New → Blueprint*, select your fork/repo (e.g.
+  `your-username/foodlens`), then render builds the API from `backend/`. The blueprint sets
+  `FOODLENS_INFERENCE_PROVIDER=hf_api`, so
   predictions come from Hugging Face's hosted inference for `nateraw/food` — the backend itself never
   loads torch, keeping its memory footprint tiny. **Add `HF_TOKEN` as a secret in the Render service**
   (Settings → Environment) — the same token you use on huggingface.co. Free HF usage is ~2,000

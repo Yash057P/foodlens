@@ -4,7 +4,7 @@ $root = $PSScriptRoot           # foodlens/
 $backend = Join-Path $root 'backend'
 $frontend = Join-Path $root 'frontend'
 $logsDir = Join-Path $root 'logs'
-$testDir = 'C:\Users\Yash\AppData\Local\Temp\opencode\foodlens_tests'
+$testDir = Join-Path $root 'testdata'
 $py = Join-Path $backend '.venv\Scripts\python.exe'
 $respFile = Join-Path $logsDir 'resp.json'
 

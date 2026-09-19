@@ -27,3 +27,5 @@ Thumbs.db
 backend_out.log
 backend_err.log
 logs/
+# Local test images (not committed)
+testdata/
