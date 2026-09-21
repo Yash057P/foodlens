@@ -30,8 +30,12 @@ export default function CameraCapture({ onCapture, onClose }) {
     let grantTimer = null
 
     async function start() {
+      // On non-secure contexts (e.g. LAN IP over HTTP) getUserMedia does not
+      // exist at all. Fall straight back to the native camera capture input,
+      // which works on every phone regardless of HTTPS.
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        if (!cancelled) setState('error')
+        if (cancelled) return
+        setState('error')
         return
       }
 
@@ -214,11 +218,12 @@ export default function CameraCapture({ onCapture, onClose }) {
           )}
         </div>
 
-        {/* No capture attr: Android shows the system sheet with Camera + Gallery + Files */}
+        {/* Fallback: open the native camera directly (works over HTTPS and plain HTTP) */}
         <input
           ref={fallbackRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/*"
+          capture="environment"
           hidden
           onChange={(e) => {
             const file = e.target.files && e.target.files[0]
