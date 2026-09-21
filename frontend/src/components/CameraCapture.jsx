@@ -8,7 +8,7 @@ function stopStream(stream) {
 
 const GRANT_TIMEOUT_MS = 9000
 
-export default function CameraCapture({ onCapture, onClose }) {
+export default function CameraCapture({ onCapture, onClose, streamRequest }) {
   const { t } = useSettings()
   const videoRef = useRef(null)
   const streamRef = useRef(null)
@@ -17,6 +17,7 @@ export default function CameraCapture({ onCapture, onClose }) {
   const deniedRef = useRef(false)
   const [state, setState] = useState('starting') // starting | live | error
   const [facing, setFacing] = useState('environment')
+  const initialRequestRef = useRef(streamRequest || null)
 
   const attachStream = (stream) => {
     const v = videoRef.current
@@ -49,10 +50,16 @@ export default function CameraCapture({ onCapture, onClose }) {
       }, GRANT_TIMEOUT_MS)
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: facing } },
-          audio: false,
-        })
+        // App.jsx already requested the stream inside the tap gesture
+        // (required for iOS Safari). Reuse that promise once; camera
+        // switches request a fresh stream.
+        const stream = initialRequestRef.current
+          ? await initialRequestRef.current
+          : await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: { ideal: facing } },
+              audio: false,
+            })
+        initialRequestRef.current = null
         clearTimeout(grantTimer)
         if (cancelled) {
           stopStream(stream)

@@ -39,6 +39,7 @@ export default function App() {
   const [cameraOpen, setCameraOpen] = useState(false)
   const [history, setHistory] = useState(loadHistory)
   const objectUrlRef = useRef(null)
+  const cameraStreamRequestRef = useRef(null)
 
   useEffect(() => {
     try {
@@ -86,6 +87,25 @@ export default function App() {
     setNotice(null)
     setStatus('idle')
   }, [])
+
+  const openCamera = () => {
+    // iOS Safari only shows the camera permission prompt if getUserMedia is
+    // called synchronously inside the tap handler. Request the stream HERE
+    // (still within the user gesture) and pass it to the camera UI.
+    let streamRequest = null
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        streamRequest = navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false,
+        })
+      } catch {
+        streamRequest = null
+      }
+    }
+    cameraStreamRequestRef.current = streamRequest
+    setCameraOpen(true)
+  }
 
   const handleBack = () => {
     if (page !== 'scan') {
@@ -178,7 +198,7 @@ export default function App() {
                 {!hasSelection && (
                   <UploadZone
                     onFileSelected={handleFileSelected}
-                    onTakePhoto={() => setCameraOpen(true)}
+                    onTakePhoto={openCamera}
                     disabled={status === 'loading'}
                   />
                 )}
@@ -206,6 +226,7 @@ export default function App() {
 
       {cameraOpen && (
         <CameraCapture
+          streamRequest={cameraStreamRequestRef.current}
           onCapture={(captured) => {
             setCameraOpen(false)
             setPage('scan')
