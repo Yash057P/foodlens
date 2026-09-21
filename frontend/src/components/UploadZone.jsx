@@ -3,15 +3,9 @@ import { useSettings } from '../SettingsContext'
 
 const ACCEPT = 'image/jpeg,image/png,image/webp'
 
-const isCoarsePointer = () =>
-  typeof window !== 'undefined' &&
-  window.matchMedia &&
-  window.matchMedia('(pointer: coarse)').matches
-
 export default function UploadZone({ onFileSelected, onTakePhoto, disabled }) {
   const { t } = useSettings()
   const fileInputRef = useRef(null)
-  const cameraInputRef = useRef(null)
   const [dragActive, setDragActive] = useState(false)
 
   const handleFiles = (files) => {
@@ -30,13 +24,10 @@ export default function UploadZone({ onFileSelected, onTakePhoto, disabled }) {
 
   const handleCameraClick = () => {
     if (disabled) return
-    // Opens the Android system chooser (Camera / Gallery / Files) on mobile,
-    // or the in-app viewfinder on desktop.
-    if (isCoarsePointer()) {
-      cameraInputRef.current && cameraInputRef.current.click()
-    } else {
-      onTakePhoto && onTakePhoto()
-    }
+    // Always open the in-app full-screen camera. On phones where
+    // getUserMedia is unavailable (plain HTTP), CameraCapture falls back to
+    // the native camera via capture=environment.
+    onTakePhoto && onTakePhoto()
   }
 
   return (
@@ -110,14 +101,7 @@ export default function UploadZone({ onFileSelected, onTakePhoto, disabled }) {
           type="button"
           className="btn btn-primary btn-zone"
           disabled={disabled}
-          onClick={() => {
-            if (disabled) return
-            if (isCoarsePointer()) {
-              cameraInputRef.current && cameraInputRef.current.click()
-            } else {
-              onTakePhoto && onTakePhoto()
-            }
-          }}
+          onClick={handleCameraClick}
         >
           <svg
             width="18"
@@ -139,15 +123,6 @@ export default function UploadZone({ onFileSelected, onTakePhoto, disabled }) {
 
       <input
         ref={fileInputRef}
-        type="file"
-        accept={ACCEPT}
-        hidden
-        onChange={(e) => handleFiles(e.target.files)}
-      />
-
-      {/* No capture attr: Android shows the system sheet with Camera + Gallery + Files */}
-      <input
-        ref={cameraInputRef}
         type="file"
         accept={ACCEPT}
         hidden
